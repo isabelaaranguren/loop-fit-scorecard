@@ -1,0 +1,458 @@
+<!-- Loop SE Fit Scorecard — single-file interactive tool. In-memory state only. -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Loop · SE Fit Scorecard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+  :root{
+    --bg:#FCFCFB; --surface:#FFFFFF; --ink:#16201E; --ink-soft:#5B6663;
+    --ink-faint:#8A938F; --line:#E7E9E7; --line-soft:#F0F1EF;
+    --teal:#0E9384; --teal-deep:#0B6E63; --teal-wash:#E9F6F3;
+    --amber:#B5710C; --amber-wash:#FBF1E2;
+    --red:#B42318; --red-wash:#FBEBE9;
+    --radius:14px; --maxw:760px;
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 20px 96px}
+
+  /* ---- sticky instrument header ---- */
+  .bar{position:sticky;top:0;z-index:20;background:rgba(252,252,251,.86);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+  .bar-in{max-width:var(--maxw);margin:0 auto;padding:14px 20px}
+  .brandrow{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .logo{display:flex;align-items:center;gap:9px;font-weight:700;letter-spacing:.14em;font-size:15px}
+  .logo svg{display:block}
+  .kicker{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint)}
+
+  .meter{margin-top:12px}
+  .meter-top{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+  .verdict{font-weight:700;font-size:16px;letter-spacing:-.01em}
+  .verdict.neutral{color:var(--ink-soft)}
+  .verdict.pursue{color:var(--teal-deep)}
+  .verdict.qualify{color:var(--amber)}
+  .verdict.nurture{color:var(--red)}
+  .readout{font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--ink-soft);white-space:nowrap}
+  .track{margin-top:8px;height:7px;border-radius:99px;background:var(--line);overflow:hidden}
+  .fill{height:100%;width:0;border-radius:99px;background:var(--teal);transition:width .35s ease,background .25s ease}
+  .fill.qualify{background:var(--amber)} .fill.nurture{background:var(--red)} .fill.pursue{background:var(--teal)}
+  .gateflag{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.04em;margin-top:7px;color:var(--ink-faint)}
+  .gateflag b{color:var(--red);font-weight:600}
+  .gateflag b.ok{color:var(--teal-deep)}
+
+  /* ---- intro ---- */
+  .lede{padding:26px 0 6px}
+  h1{font-size:25px;line-height:1.15;letter-spacing:-.02em;margin:0 0 8px}
+  .lede p{color:var(--ink-soft);margin:0;font-size:14.5px;max-width:60ch}
+
+  .fast{margin:20px 0 6px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);padding:16px 18px}
+  .fast h3{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--teal-deep);margin:0 0 10px;font-weight:600}
+  .fast ol{margin:0;padding-left:20px}
+  .fast li{font-size:13.5px;color:var(--ink);margin:5px 0}
+  .fast li span{color:var(--ink-soft)}
+
+  /* ---- dimension cards ---- */
+  .dim{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin-top:16px;scroll-margin-top:150px}
+  .dim.rated{border-color:var(--line-soft)}
+  .dim-head{display:flex;gap:14px;align-items:flex-start}
+  .num{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:13px;color:var(--teal-deep);background:var(--teal-wash);border-radius:8px;padding:4px 8px;line-height:1;margin-top:2px}
+  .dim h2{font-size:16.5px;letter-spacing:-.01em;margin:0 0 3px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .gate{font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.1em;color:var(--red);border:1px solid var(--red);border-radius:5px;padding:2px 5px;font-weight:600;text-transform:uppercase}
+  .dim .why{font-size:13px;color:var(--ink-soft);margin:0}
+
+  .q{margin:14px 0 0;padding:0;list-style:none}
+  .q li{position:relative;padding-left:18px;font-size:13.5px;color:var(--ink);margin:7px 0}
+  .q li::before{content:"";position:absolute;left:2px;top:9px;width:5px;height:5px;border-radius:99px;background:var(--teal)}
+
+  .cues{display:flex;flex-direction:column;gap:7px;margin:14px 0 0}
+  .cue{font-size:12.5px;border-radius:9px;padding:9px 11px;line-height:1.45}
+  .cue b{font-weight:600}
+  .cue.good{background:var(--teal-wash);color:var(--teal-deep)}
+  .cue.bad{background:var(--red-wash);color:var(--red)}
+
+  .rate{display:flex;gap:8px;margin-top:15px;flex-wrap:wrap}
+  .rate button{flex:1;min-width:96px;font:inherit;font-size:13px;font-weight:500;cursor:pointer;padding:10px 8px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink-soft);transition:all .12s ease}
+  .rate button:hover{border-color:var(--ink-faint)}
+  .rate button .dot{display:inline-block;width:8px;height:8px;border-radius:99px;margin-right:7px;vertical-align:middle;background:var(--ink-faint)}
+  .rate button[data-v="2"] .dot{background:var(--teal)}
+  .rate button[data-v="1"] .dot{background:var(--amber)}
+  .rate button[data-v="0"] .dot{background:var(--red)}
+  .rate button[aria-pressed="true"][data-v="2"]{background:var(--teal);border-color:var(--teal);color:#fff}
+  .rate button[aria-pressed="true"][data-v="1"]{background:var(--amber);border-color:var(--amber);color:#fff}
+  .rate button[aria-pressed="true"][data-v="0"]{background:var(--red);border-color:var(--red);color:#fff}
+  .rate button[aria-pressed="true"] .dot{background:#fff}
+
+  textarea.notes{width:100%;margin-top:12px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:inherit;font-size:13px;color:var(--ink);resize:vertical;min-height:46px;background:var(--bg)}
+  textarea.notes:focus{outline:2px solid var(--teal);outline-offset:1px;border-color:transparent}
+  textarea.notes::placeholder{color:var(--ink-faint)}
+
+  /* ---- actions ---- */
+  .actions{display:flex;gap:10px;margin-top:24px;flex-wrap:wrap}
+  .btn{font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;border-radius:11px;padding:12px 18px;border:1px solid var(--teal);background:var(--teal);color:#fff;transition:all .12s ease}
+  .btn:hover{background:var(--teal-deep);border-color:var(--teal-deep)}
+  .btn.ghost{background:transparent;color:var(--ink-soft);border-color:var(--line)}
+  .btn.ghost:hover{border-color:var(--ink-faint);color:var(--ink)}
+  .toast{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--teal-deep);align-self:center;opacity:0;transition:opacity .2s}
+  .toast.show{opacity:1}
+
+  .foot{margin-top:30px;padding-top:18px;border-top:1px solid var(--line);font-size:12px;color:var(--ink-faint);line-height:1.55}
+  .foot b{color:var(--ink-soft);font-weight:600}
+
+  @media (max-width:560px){
+    h1{font-size:22px}
+    .rate button{min-width:0;flex:1 1 30%}
+    .dim{padding:16px}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="bar">
+  <div class="bar-in">
+    <div class="brandrow">
+      <div class="logo">
+        L
+        <svg width="30" height="14" viewBox="0 0 30 14" fill="none" aria-hidden="true">
+          <circle cx="7" cy="7" r="5.4" stroke="var(--teal)" stroke-width="1.8"/>
+          <circle cx="20" cy="7" r="5.4" stroke="var(--teal)" stroke-width="1.8"/>
+        </svg>
+        P
+      </div>
+      <div class="kicker">SE Fit Scorecard</div>
+    </div>
+    <div class="meter">
+      <div class="meter-top">
+        <div class="verdict neutral" id="verdict">Begin rating</div>
+        <div class="readout" id="readout">0 / 7 rated · 0/14</div>
+      </div>
+      <div class="track"><div class="fill" id="fill"></div></div>
+      <div class="gateflag" id="gateflag">Gates (1 · 4 · 5): <b class="ok">awaiting</b></div>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="lede">
+    <h1>Is this a Loop deal?</h1>
+    <p>Click a rating on each dimension as the conversation unfolds. The readout above shows your live fit verdict. Three dimensions are <b>gates</b> — a red flag on any one caps the verdict regardless of total score.</p>
+  </div>
+
+  <div class="fast">
+    <h3>The 10-minute disqualifier</h3>
+    <ol>
+      <li>Is there an AI initiative — and did control/audit ever stall it? <span>(Gate 1)</span></li>
+      <li>Where does the portfolio &amp; signal data live, and is it connected? <span>(Gate 4)</span></li>
+      <li>Who's accountable for letting an AI act — and are they in the room? <span>(Gate 5)</span></li>
+    </ol>
+  </div>
+
+  <!-- DIMENSIONS -->
+  <section class="dim" data-gate="true" id="d1">
+    <div class="dim-head">
+      <span class="num">01</span>
+      <div>
+        <h2>Triggering AI pain <span class="gate">Gate</span></h2>
+        <p class="why">The whole wedge. No agentic-AI ambition = nothing for the governance story to bite on.</p>
+      </div>
+    </div>
+    <ul class="q">
+      <li>Any AI/automation initiative touching planning, prioritization, or resource decisions? Where is it — idea, pilot, stalled, production?</li>
+      <li>If you piloted agentic tooling, what stopped it? Was control, auditability, or trust ever the blocker?</li>
+      <li>When AI suggests changing a priority, date, or allocation, who's allowed to say yes — and how do they defend it afterward?</li>
+      <li>Board/exec pressure to "use AI" with no governance answer?</li>
+    </ul>
+    <div class="cues">
+      <div class="cue good"><b>Strong:</b> a pilot that died at evaluation over control/audit, or an exec AI mandate with no governance answer.</div>
+      <div class="cue bad"><b>Red flag:</b> "we're not really doing AI" / "we just want a better roadmap tool" — differentiation gone, you're fighting Planview on price.</div>
+    </div>
+    <div class="rate" role="group" aria-label="Rate dimension 1">
+      <button data-v="2"><span class="dot"></span>Strong</button>
+      <button data-v="1"><span class="dot"></span>Partial</button>
+      <button data-v="0"><span class="dot"></span>Red flag</button>
+    </div>
+    <textarea class="notes" placeholder="Notes…"></textarea>
+  </section>
+
+  <section class="dim" data-gate="false" id="d2">
+    <div class="dim-head">
+      <span class="num">02</span>
+      <div>
+        <h2>Portfolio scale &amp; pain</h2>
+        <p class="why">Loop is high-ACV. The planning problem has to be big enough to justify the price.</p>
+      </div>
+    </div>
+    <ul class="q">
+      <li>How many concurrent initiatives are you keeping aligned to strategy at once? Across how many teams?</li>
+      <li>How do you plan and reprioritize today — and how often does it break or go stale?</li>
+      <li>How does new work enter the plan — real intake/triage, or does it just land?</li>
+      <li>Do you run on OKRs or a framework that prioritization ties back to?</li>
+    </ul>
+    <div class="cues">
+      <div class="cue good"><b>Strong:</b> large, messy, OKR-driven portfolio; manual reprioritization thrash; uncontrolled intake.</div>
+      <div class="cue bad"><b>Red flag:</b> small portfolio, a few teams, no strategy framework to anchor planning rules to.</div>
+    </div>
+    <div class="rate" role="group" aria-label="Rate dimension 2">
+      <button data-v="2"><span class="dot"></span>Strong</button>
+      <button data-v="1"><span class="dot"></span>Partial</button>
+      <button data-v="0"><span class="dot"></span>Red flag</button>
+    </div>
+    <textarea class="notes" placeholder="Notes…"></textarea>
+  </section>
+
+  <section class="dim" data-gate="false" id="d3">
+    <div class="dim-head">
+      <span class="num">03</span>
+      <div>
+        <h2>Governance &amp; approval structure</h2>
+        <p class="why">The audit log, rollback, and Dial only pay off if they have real approval and accountability needs.</p>
+      </div>
+    </div>
+    <ul class="q">
+      <li>Regulated industry, or subject to audit on operational decisions?</li>
+      <li>Defined approval thresholds today — who signs off on what, at what dollar/risk level?</li>
+      <li>Retention/audit requirement for decision records? (Loop = 7-yr immutable, exportable.)</li>
+      <li>If an automated action went wrong, what would the org need — gates, visibility, reversal?</li>
+    </ul>
+    <div class="cues">
+      <div class="cue good"><b>Strong:</b> real approval hierarchy, audit obligations, a named accountable exec. Regulated = governance becomes the reason to buy.</div>
+      <div class="cue bad"><b>Red flag:</b> no approval structure, no audit need — the governance machinery is overkill they won't pay for.</div>
+    </div>
+    <div class="rate" role="group" aria-label="Rate dimension 3">
+      <button data-v="2"><span class="dot"></span>Strong</button>
+      <button data-v="1"><span class="dot"></span>Partial</button>
+      <button data-v="0"><span class="dot"></span>Red flag</button>
+    </div>
+    <textarea class="notes" placeholder="Notes…"></textarea>
+  </section>
+
+  <section class="dim" data-gate="true" id="d4">
+    <div class="dim-head">
+      <span class="num">04</span>
+      <div>
+        <h2>Data &amp; integration surface <span class="gate">Gate</span></h2>
+        <p class="why">No connected signals, no intelligence. The SE-critical fit check AEs routinely miss.</p>
+      </div>
+    </div>
+    <ul class="q">
+      <li>What systems hold portfolio, work, and delivery data — Jira/Atlassian, ADO, a PPM tool, spreadsheets?</li>
+      <li>Where would operational signals come from — execution tools, CRM, support, finance?</li>
+      <li>How clean and centralized is it, or fragmented across teams and tools?</li>
+      <li>Integration appetite and IT support to connect sources?</li>
+      <li>Identity/security: SSO provider (Okta/Ping/OneLogin?), SCIM, single-tenant, data residency?</li>
+    </ul>
+    <div class="cues">
+      <div class="cue good"><b>Strong:</b> centralized work data (esp. Atlassian), willing IT, SSO/SCIM needs Loop already meets.</div>
+      <div class="cue bad"><b>Red flag:</b> data scattered across 30 spreadsheets, no system of record — the signals layer starves and the pilot underwhelms.</div>
+    </div>
+    <div class="rate" role="group" aria-label="Rate dimension 4">
+      <button data-v="2"><span class="dot"></span>Strong</button>
+      <button data-v="1"><span class="dot"></span>Partial</button>
+      <button data-v="0"><span class="dot"></span>Red flag</button>
+    </div>
+    <textarea class="notes" placeholder="Notes…"></textarea>
+  </section>
+
+  <section class="dim" data-gate="true" id="d5">
+    <div class="dim-head">
+      <span class="num">05</span>
+      <div>
+        <h2>Buying committee (two-sided) <span class="gate">Gate</span></h2>
+        <p class="why">Bought by a pair: the operator who runs it and the exec accountable for letting it act. Missing either side stalls.</p>
+      </div>
+    </div>
+    <ul class="q">
+      <li>Who configures the planning rules and lives in the tool day to day? (the operator)</li>
+      <li>Who owns budget and the risk of giving an AI operational authority? (the accountable exec)</li>
+      <li>Who in security/compliance/IT holds veto power?</li>
+      <li>Has this group bought and deployed something similar together before?</li>
+    </ul>
+    <div class="cues">
+      <div class="cue good"><b>Strong:</b> engaged operator + accountable exec sponsor + a known security gatekeeper.</div>
+      <div class="cue bad"><b>Red flag:</b> a single mid-level champion with no exec air cover — the "advance the Dial to Delegate" decision never gets made.</div>
+    </div>
+    <div class="rate" role="group" aria-label="Rate dimension 5">
+      <button data-v="2"><span class="dot"></span>Strong</button>
+      <button data-v="1"><span class="dot"></span>Partial</button>
+      <button data-v="0"><span class="dot"></span>Red flag</button>
+    </div>
+    <textarea class="notes" placeholder="Notes…"></textarea>
+  </section>
+
+  <section class="dim" data-gate="false" id="d6">
+    <div class="dim-head">
+      <span class="num">06</span>
+      <div>
+        <h2>Commercial fit (credit model)</h2>
+        <p class="why">Most likely place a good-fit deal dies at finance. Surface it early.</p>
+      </div>
+    </div>
+    <ul class="q">
+      <li>How do you prefer to buy — seat-based, platform, consumption? Any allergy to usage-based pricing?</li>
+      <li>Who approves a variable, consumption-based cost — and what would they need (caps, forecasts, predictability)?</li>
+      <li>Rough budget envelope for a platform like this? (Confirms the 6-figure motion is realistic.)</li>
+    </ul>
+    <div class="cues">
+      <div class="cue good"><b>Strong:</b> comfort with consumption pricing and budget at the right altitude.</div>
+      <div class="cue bad"><b>Red flag:</b> hard seat-based procurement mindset or no budget — fights Loop's "pay for intelligence, not seats" model.</div>
+    </div>
+    <div class="rate" role="group" aria-label="Rate dimension 6">
+      <button data-v="2"><span class="dot"></span>Strong</button>
+      <button data-v="1"><span class="dot"></span>Partial</button>
+      <button data-v="0"><span class="dot"></span>Red flag</button>
+    </div>
+    <textarea class="notes" placeholder="Notes…"></textarea>
+  </section>
+
+  <section class="dim" data-gate="false" id="d7">
+    <div class="dim-head">
+      <span class="num">07</span>
+      <div>
+        <h2>Eval exit criteria</h2>
+        <p class="why">Define what the pilot must prove before you scope one.</p>
+      </div>
+    </div>
+    <ul class="q">
+      <li>What specific outcome would convince you — and your exec and security team — this is real?</li>
+      <li>Where would you start the Agentic Dial — Observe, Assist, or Delegate — and what advances it?</li>
+      <li>What does success look like 90 days in?</li>
+    </ul>
+    <div class="cues">
+      <div class="cue good"><b>Strong:</b> can articulate a concrete success criterion and a starting Dial position.</div>
+      <div class="cue bad"><b>Red flag:</b> can't define success — not ready for a pilot, ready for education.</div>
+    </div>
+    <div class="rate" role="group" aria-label="Rate dimension 7">
+      <button data-v="2"><span class="dot"></span>Strong</button>
+      <button data-v="1"><span class="dot"></span>Partial</button>
+      <button data-v="0"><span class="dot"></span>Red flag</button>
+    </div>
+    <textarea class="notes" placeholder="Notes…"></textarea>
+  </section>
+
+  <div class="actions">
+    <button class="btn" id="copy">Copy summary for CRM</button>
+    <button class="btn ghost" id="reset">Reset</button>
+    <span class="toast" id="toast">Copied to clipboard</span>
+  </div>
+
+  <p class="foot">
+    <b>Scoring:</b> Strong +2 · Partial +1 · Red flag 0, out of 14. Gates = dimensions 1, 4, 5; one red flag there caps the verdict at <i>nurture</i> no matter the total.
+    Pursue ≥ 11 · Qualify 7–10 · Nurture &lt; 7.<br><br>
+    <b>Carryover caveats from the analysis:</b> Loop's Atlassian/Tempo ecosystem fit and the exact DPP/EAP role definitions are still inferred, not confirmed. Validate both — they change the integration discovery (Q4) and the committee mapping (Q5).
+  </p>
+</div>
+
+<script>
+(function(){
+  var TITLES = {
+    d1:"Triggering AI pain", d2:"Portfolio scale & pain", d3:"Governance & approval structure",
+    d4:"Data & integration surface", d5:"Buying committee", d6:"Commercial fit", d7:"Eval exit criteria"
+  };
+  var LABELS = {2:"Strong", 1:"Partial", 0:"Red flag"};
+  var dims = Array.prototype.slice.call(document.querySelectorAll('.dim'));
+  var verdictEl = document.getElementById('verdict');
+  var readoutEl = document.getElementById('readout');
+  var fillEl = document.getElementById('fill');
+  var gateEl = document.getElementById('gateflag');
+
+  dims.forEach(function(dim){
+    dim.querySelectorAll('.rate button').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var pressed = btn.getAttribute('aria-pressed') === 'true';
+        dim.querySelectorAll('.rate button').forEach(function(b){ b.setAttribute('aria-pressed','false'); });
+        if(pressed){ dim.removeAttribute('data-val'); dim.classList.remove('rated'); }
+        else { btn.setAttribute('aria-pressed','true'); dim.setAttribute('data-val', btn.getAttribute('data-v')); dim.classList.add('rated'); }
+        recompute();
+      });
+    });
+  });
+
+  function recompute(){
+    var total = 0, rated = 0, gateBlocked = false, gatesRated = 0, gatesTotal = 0;
+    dims.forEach(function(dim){
+      var isGate = dim.getAttribute('data-gate') === 'true';
+      if(isGate) gatesTotal++;
+      if(dim.hasAttribute('data-val')){
+        var v = parseInt(dim.getAttribute('data-val'),10);
+        total += v; rated++;
+        if(isGate){ gatesRated++; if(v === 0) gateBlocked = true; }
+      }
+    });
+
+    var pct = Math.round((total/14)*100);
+    readoutEl.textContent = rated + ' / 7 rated · ' + total + '/14';
+
+    fillEl.classList.remove('pursue','qualify','nurture');
+    verdictEl.classList.remove('neutral','pursue','qualify','nurture');
+
+    var cls, txt;
+    if(gateBlocked){
+      cls = 'nurture'; txt = 'Walk away / nurture — gate failed';
+    } else if(rated < dims.length){
+      cls = 'neutral'; txt = 'In progress';
+      verdictEl.classList.add('neutral');
+      verdictEl.textContent = txt;
+      fillEl.style.width = pct + '%';
+      updateGateflag(gateBlocked, gatesRated, gatesTotal);
+      return;
+    } else if(total >= 11){
+      cls = 'pursue'; txt = 'Pursue — scope a pilot';
+    } else if(total >= 7){
+      cls = 'qualify'; txt = 'Qualify further';
+    } else {
+      cls = 'nurture'; txt = 'Nurture / educate';
+    }
+
+    verdictEl.classList.add(cls);
+    fillEl.classList.add(cls);
+    verdictEl.textContent = txt;
+    fillEl.style.width = (gateBlocked ? 100 : pct) + '%';
+    updateGateflag(gateBlocked, gatesRated, gatesTotal);
+  }
+
+  function updateGateflag(blocked, gatesRated, gatesTotal){
+    if(blocked){
+      gateEl.innerHTML = 'Gates (1 · 4 · 5): <b>blocked — a gate is a red flag</b>';
+    } else if(gatesRated === gatesTotal){
+      gateEl.innerHTML = 'Gates (1 · 4 · 5): <b class="ok">clear</b>';
+    } else {
+      gateEl.innerHTML = 'Gates (1 · 4 · 5): <b class="ok">' + gatesRated + ' of ' + gatesTotal + ' rated</b>';
+    }
+  }
+
+  document.getElementById('copy').addEventListener('click', function(){
+    var d = new Date();
+    var lines = ['LOOP — SE FIT SCORECARD', d.toLocaleString(), ''];
+    lines.push(verdictEl.textContent.toUpperCase() + '  ·  ' + readoutEl.textContent);
+    lines.push(gateEl.textContent);
+    lines.push('');
+    dims.forEach(function(dim){
+      var id = dim.id, num = dim.querySelector('.num').textContent;
+      var v = dim.hasAttribute('data-val') ? LABELS[dim.getAttribute('data-val')] : '— not rated';
+      var note = dim.querySelector('.notes').value.trim();
+      lines.push(num + '  ' + TITLES[id] + ': ' + v);
+      if(note) lines.push('     ↳ ' + note);
+    });
+    var text = lines.join('\n');
+    var done = function(){ var t=document.getElementById('toast'); t.classList.add('show'); setTimeout(function(){t.classList.remove('show');},1600); };
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(done, function(){ fallback(text); done(); });
+    } else { fallback(text); done(); }
+  });
+
+  function fallback(text){
+    var ta=document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select(); try{document.execCommand('copy');}catch(e){} document.body.removeChild(ta);
+  }
+
+  document.getElementById('reset').addEventListener('click', function(){
+    dims.forEach(function(dim){
+      dim.removeAttribute('data-val'); dim.classList.remove('rated');
+      dim.querySelectorAll('.rate button').forEach(function(b){ b.setAttribute('aria-pressed','false'); });
+      dim.querySelector('.notes').value='';
+    });
+    recompute();
+  });
+
+  recompute();
+})();
+</script>
